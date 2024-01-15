@@ -37,15 +37,37 @@ function render(el, container) {
             children: [el]
         }
     }
+    root = nextWorkOfUnit;
 }
 
 let nextWorkOfUnit = null
+let root = null
+
+function commitWork(fiber) {
+    if (!fiber) {
+        return
+    }
+    const domParent = fiber.parent.dom
+    domParent.append(fiber.dom)
+    commitWork(fiber.child)
+    commitWork(fiber.sibling)
+}
+
+function commitRoot() {
+    commitWork(root.child)
+    root = null
+}
 
 function workLoop(deadline) {
     let shouldYield = false
     while (!shouldYield && nextWorkOfUnit) {
         nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit)
         shouldYield = deadline.timeRemaining() < 1
+    }
+    if (!nextWorkOfUnit && root) {
+        console.log('render结束')
+        commitRoot()
+
     }
     requestIdleCallback(workLoop)
 
@@ -59,7 +81,7 @@ function performWorkOfUnit(work) {
         const dom = (
             work.dom = work.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(work.type)
         )
-        work.parent.dom.appendChild(dom)
+        // work.parent.dom.appendChild(dom)
 //     2.处理props
         Object.keys(work.props).forEach(key => {
             if (key !== 'children') {
