@@ -1,7 +1,14 @@
 import React from "./core/React.js";
 
 function Counter({num}) {
-    return <div>count{num}</div>
+    function handleClick() {
+        console.log('click')
+    }
+
+    return <div>
+        count{num}
+        <button onClick={handleClick}>click</button>
+    </div>
 }
 
 function CounterContainer() {
@@ -14,7 +21,6 @@ function App() {
         haha
         <span>heihei</span>
         <Counter num={10}> </Counter>
-        <Counter num={20}> </Counter>
     </div>
 }
 

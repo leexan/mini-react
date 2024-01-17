@@ -123,6 +123,10 @@ function updateProps(dom, props) {
     Object.keys(props)
         .filter(key => key !== 'children')
         .forEach(key => {
+            if(key.startsWith('on')){
+                const eventType=key.toLowerCase().substring(2)
+                dom.addEventListener(eventType,props[key])
+            }
             dom[key] = props[key]
         })
 }
