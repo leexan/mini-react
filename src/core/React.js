@@ -43,6 +43,7 @@ function render(el, container) {
 
 let nextWorkOfUnit = null
 let root = null
+let currentRoot;
 
 function commitWork(fiber) {
     if (!fiber) {
@@ -52,15 +53,20 @@ function commitWork(fiber) {
     while (!fiberParent.dom) {
         fiberParent = fiberParent.parent
     }
-    if (fiber.dom) {
-        fiberParent.dom.append(fiber.dom)
+    if (fiber.effectTag === 'update') {
+        updateProps(fiber.dom, fiber.props, fiber.alternate?.props)
+    } else if (fiber.effectTag === 'placement') {
+        if (fiber.dom) {
+            fiberParent.dom.append(fiber.dom)
+        }
+        commitWork(fiber.child)
+        commitWork(fiber.sibling)
     }
-    commitWork(fiber.child)
-    commitWork(fiber.sibling)
 }
 
 function commitRoot() {
     commitWork(root.child)
+    currentRoot = root
     root = null
 }
 
@@ -88,15 +94,36 @@ function createDom(type) {
 }
 
 function initChildren(fiber, children) {
+    let oldFiber = fiber.alternate?.child
     let preChild = null
+    let newWork = null
     children.forEach((child, index) => {
-        const newWork = {
-            type: child.type,
-            props: child.props,
-            parent: fiber,
-            child: null,
-            sibling: null,
-            dom: null
+        const sameType = child && oldFiber && child.type === oldFiber.type
+        if (sameType) {
+            // update
+            newWork = {
+                type: child.type,
+                props: child.props,
+                parent: fiber,
+                child: null,
+                sibling: null,
+                dom: oldFiber.dom,
+                effectTag: 'update',
+                alternate: oldFiber
+            }
+        } else {
+            newWork = {
+                type: child.type,
+                props: child.props,
+                parent: fiber,
+                child: null,
+                sibling: null,
+                dom: null,
+                effectTag: 'placement',
+            }
+        }
+        if (oldFiber) {
+            oldFiber = oldFiber.sibling
         }
         if (index === 0) {
             fiber.child = newWork
@@ -111,33 +138,55 @@ function updateFunctionComponent(fiber) {
     const children = [fiber.type(fiber.props)]
     initChildren(fiber, children)
 }
+
 function updateHostComponent(fiber) {
     if (!fiber.dom) {
-        const dom=(fiber.dom = createDom(fiber.type))
-        updateProps(dom, fiber.props)
+        const dom = (fiber.dom = createDom(fiber.type))
+        updateProps(dom, fiber.props, {})
     }
     const children = fiber.props.children
-    initChildren(fiber,children )
+    initChildren(fiber, children)
 }
-function updateProps(dom, props) {
-    Object.keys(props)
+
+function updateProps(dom, nextProps, prevProps,) {
+    debugger
+    // Object.keys(props)
+    //     .filter(key => key !== 'children')
+    //     .forEach(key => {
+    //         if (key.startsWith('on')) {
+    //             const eventType = key.toLowerCase().substring(2)
+    //             dom.addEventListener(eventType, props[key])
+    //         }
+    //         dom[key] = props[key]
+    //     })
+//     删除旧的属性
+    Object.keys(prevProps).forEach(key => {
+        if (key !== 'children') {
+            if (!(key in nextProps)) {
+                dom.removeAttribute(key)
+            }
+        }
+    })
+    Object.keys(nextProps)
         .filter(key => key !== 'children')
         .forEach(key => {
-            if(key.startsWith('on')){
-                const eventType=key.toLowerCase().substring(2)
-                dom.addEventListener(eventType,props[key])
+            if (nextProps[key] !== prevProps[key]) {
+                if (key.startsWith('on')) {
+                    const eventType = key.toLowerCase().substring(2)
+                    dom.addEventListener(eventType, nextProps[key])
+                }
+                dom[key] = nextProps[key]
             }
-            dom[key] = props[key]
         })
 }
 
 function performWorkOfUnit(work) {
     const isFunctionComponent = typeof work.type === 'function'
 
-    if(isFunctionComponent){
+    if (isFunctionComponent) {
         updateFunctionComponent(work)
 
-    }else{
+    } else {
         updateHostComponent(work)
     }
 
@@ -155,8 +204,18 @@ function performWorkOfUnit(work) {
 
 }
 
+function update() {
+    nextWorkOfUnit = {
+        dom: currentRoot.dom,
+        props: currentRoot.props,
+        alternate: currentRoot
+    }
+    root = nextWorkOfUnit;
+}
+
 const React = {
     createElement,
-    render
+    render,
+    update
 }
 export default React
