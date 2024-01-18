@@ -149,7 +149,6 @@ function updateHostComponent(fiber) {
 }
 
 function updateProps(dom, nextProps, prevProps,) {
-    debugger
     // Object.keys(props)
     //     .filter(key => key !== 'children')
     //     .forEach(key => {
